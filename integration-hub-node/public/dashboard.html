@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>控制台 - 企业多系统连接中枢</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; }
+        .layout { display: flex; min-height: 100vh; }
+        .sidebar { width: 240px; background: #001529; color: white; position: fixed; height: 100vh; overflow-y: auto; }
+        .sidebar-logo { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-logo h2 { font-size: 16px; color: #fff; }
+        .sidebar-logo span { font-size: 12px; color: rgba(255,255,255,0.5); }
+        .nav-menu { list-style: none; padding: 10px 0; }
+        .nav-item { padding: 12px 24px; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 10px; font-size: 14px; color: rgba(255,255,255,0.7); }
+        .nav-item:hover, .nav-item.active { background: #1890ff; color: white; }
+        .nav-item .icon { width: 20px; text-align: center; }
+        .main-content { margin-left: 240px; flex: 1; }
+        .header { background: white; padding: 0 24px; height: 60px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+        .header-right { display: flex; align-items: center; gap: 20px; }
+        .page-content { padding: 24px; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .card { background: white; border-radius: 8px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .card h3 { margin-bottom: 20px; color: #333; font-size: 18px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
+        .stat-card { background: white; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .stat-card .label { color: #666; font-size: 14px; margin-bottom: 10px; }
+        .stat-card .value { font-size: 28px; font-weight: bold; }
+        .stat-card .trend { font-size: 12px; margin-top: 5px; }
+        .trend.up { color: #52c41a; }
+        .trend.down { color: #ff4d4f; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+        th { background: #fafafa; font-weight: 500; color: #666; }
+        .status { padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .status.active { background: #f6ffed; color: #52c41a; }
+        .status.inactive { background: #fff2f0; color: #ff4d4f; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .btn-primary { background: #1890ff; color: white; }
+        .btn-danger { background: #ff4d4f; color: white; }
+        .btn-success { background: #52c41a; color: white; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #333; font-size: 14px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; }
+        .form-group textarea { min-height: 100px; font-family: monospace; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .modal.show { display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 8px; width: 500px; max-width: 90%; }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; }
+        .chart-placeholder { height: 300px; background: linear-gradient(135deg, #667eea20, #764ba220); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #666; }
+        .log-item { padding: 12px; border-bottom: 1px solid #f0f0f0; display: flex; gap: 15px; }
+        .log-time { color: #999; font-size: 12px; min-width: 150px; }
+        .log-level { padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+        .log-level.info { background: #e6f7ff; color: #1890ff; }
+        .log-level.warn { background: #fffbe6; color: #faad14; }
+        .log-level.error { background: #fff2f0; color: #ff4d4f; }
+        .topology { height: 400px; background: #fafafa; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; }
+        .node { position: absolute; padding: 15px 25px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 14px; }
+        .node.hub { background: linear-gradient(135deg, #667eea, #764ba2); color: white; left: 50%; top: 50%; transform: translate(-50%, -50%); font-weight: bold; }
+        .node.system { border: 2px solid #1890ff; }
+        .node.system:nth-child(2) { left: 10%; top: 20%; }
+        .node.system:nth-child(3) { right: 10%; top: 20%; }
+        .node.system:nth-child(4) { left: 10%; bottom: 20%; }
+        .node.system:nth-child(5) { right: 10%; bottom: 20%; }
+        .node.system:nth-child(6) { left: 50%; top: 10%; transform: translateX(-50%); }
+        .config-item { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #f0f0f0; }
+        .config-key { color: #333; font-weight: 500; }
+        .config-value { color: #666; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div class="sidebar-logo">
+                <h2>集成中枢</h2>
+                <span>Integration Hub</span>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item active" data-page="dashboard"><span class="icon">📊</span> 首页概览</li>
+                <li class="nav-item" data-page="systems"><span class="icon">🔌</span> 系统管理</li>
+                <li class="nav-item" data-page="apis"><span class="icon">🔗</span> API 管理</li>
+                <li class="nav-item" data-page="mapping"><span class="icon">🔄</span> 数据映射</li>
+                <li class="nav-item" data-page="routes"><span class="icon">🛣️</span> 路由配置</li>
+                <li class="nav-item" data-page="monitor"><span class="icon">📈</span> 监控中心</li>
+                <li class="nav-item" data-page="logs"><span class="icon">📝</span> 日志审计</li>
+                <li class="nav-item" data-page="settings"><span class="icon">⚙️</span> 系统设置</li>
+            </ul>
+        </div>
+        <div class="main-content">
+            <div class="header">
+                <h3 id="pageTitle">首页概览</h3>
+                <div class="header-right">
+                    <span id="username"></span>
+                    <button class="btn btn-danger" onclick="logout()">退出</button>
+                </div>
+            </div>
+            <div class="page-content">
+                <!-- 首页概览 -->
+                <div class="page active" id="page-dashboard">
+                    <div class="stats-grid">
+                        <div class="stat-card"><div class="label">已接入系统</div><div class="value">5</div><div class="trend up">↑ 2 本月新增</div></div>
+                        <div class="stat-card"><div class="label">活跃 API</div><div class="value">128</div><div class="trend up">↑ 12 本周新增</div></div>
+                        <div class="stat-card"><div class="label">今日调用量</div><div class="value">45.2K</div><div class="trend up">↑ 8.5% 较昨日</div></div>
+                        <div class="stat-card"><div class="label">平均延迟</div><div class="value">45ms</div><div class="trend down">↓ 12ms 较昨日</div></div>
+                    </div>
+                    <div class="card"><h3>系统拓扑</h3><div class="topology"><div class="node hub">集成中枢</div><div class="node system">ERP</div><div class="node system">CRM</div><div class="node system">HRM</div><div class="node system">OA</div><div class="node system">WMS</div></div></div>
+                    <div class="card"><h3>最近告警</h3><table><thead><tr><th>时间</th><th>级别</th><th>内容</th><th>状态</th></tr></thead><tbody><tr><td>2026-04-10 14:32</td><td><span class="status inactive">警告</span></td><td>CRM 系统响应延迟 > 200ms</td><td>已恢复</td></tr><tr><td>2026-04-10 12:15</td><td><span class="status inactive">错误</span></td><td>数据转换失败: 字段类型不匹配</td><td>已处理</td></tr></tbody></table></div>
+                </div>
+                <!-- 系统管理 -->
+                <div class="page" id="page-systems">
+                    <div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:20px"><h3>已接入系统</h3><button class="btn btn-primary" onclick="showModal('addSystemModal')">+ 新增系统</button></div><table><thead><tr><th>系统名称</th><th>类型</th><th>协议</th><th>状态</th><th>接入时间</th><th>操作</th></tr></thead><tbody id="systemsTable"><tr><td>SAP ERP</td><td>ERP</td><td>REST</td><td><span class="status active">运行中</span></td><td>2026-03-01</td><td><button class="btn btn-primary">编辑</button> <button class="btn btn-danger">禁用</button></td></tr><tr><td>Salesforce</td><td>CRM</td><td>REST</td><td><span class="status active">运行中</span></td><td>2026-03-15</td><td><button class="btn btn-primary">编辑</button> <button class="btn btn-danger">禁用</button></td></tr><tr><td>Workday</td><td>HRM</td><td>SOAP</td><td><span class="status active">运行中</span></td><td>2026-04-01</td><td><button class="btn btn-primary">编辑</button> <button class="btn btn-danger">禁用</button></td></tr><tr><td>钉钉 OA</td><td>OA</td><td>Webhook</td><td><span class="status inactive">已禁用</span></td><td>2026-04-05</td><td><button class="btn btn-primary">编辑</button> <button class="btn btn-success">启用</button></td></tr><tr><td>富勒 WMS</td><td>WMS</td><td>AMQP</td><td><span class="status active">运行中</span></td><td>2026-04-08</td><td><button class="btn btn-primary">编辑</button> <button class="btn btn-danger">禁用</button></td></tr></tbody></table></div>
+                </div>
+                <!-- API 管理 -->
+                <div class="page" id="page-apis">
+                    <div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:20px"><h3>API 列表</h3><button class="btn btn-primary" onclick="showModal('addApiModal')">+ 注册 API</button></div><table><thead><tr><th>API 路径</th><th>方法</th><th>所属系统</th><th>版本</th><th>调用次数</th><th>状态</th></tr></thead><tbody><tr><td>/api/v1/orders</td><td>POST</td><td>SAP ERP</td><td>v1.0</td><td>12,456</td><td><span class="status active">正常</span></td></tr><tr><td>/api/v1/customers</td><td>GET</td><td>Salesforce</td><td>v2.1</td><td>8,923</td><td><span class="status active">正常</span></td></tr><tr><td>/api/v1/employees</td><td>GET</td><td>Workday</td><td>v1.0</td><td>5,678</td><td><span class="status active">正常</span></td></tr><tr><td>/api/v1/inventory</td><td>PUT</td><td>富勒 WMS</td><td>v1.2</td><td>3,245</td><td><span class="status active">正常</span></td></tr></tbody></table></div>
+                </div>
+                <!-- 数据映射 -->
+                <div class="page" id="page-mapping">
+                    <div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:20px"><h3>数据映射规则</h3><button class="btn btn-primary" onclick="showModal('addMappingModal')">+ 创建映射</button></div><table><thead><tr><th>映射名称</th><th>源系统</th><th>目标系统</th><th>字段数</th><th>状态</th><th>操作</th></tr></thead><tbody><tr><td>ERP→CRM 客户同步</td><td>SAP ERP</td><td>Salesforce</td><td>15</td><td><span class="status active">启用</span></td><td><button class="btn btn-primary">编辑</button> <button class="btn btn-danger">删除</button></td></tr><tr><td>HRM→OA 员工同步</td><td>Workday</td><td>钉钉 OA</td><td>8</td><td><span class="status active">启用</span></td><td><button class="btn btn-primary">编辑</button> <button class="btn btn-danger">删除</button></td></tr><tr><td>ERP→WMS 库存同步</td><td>SAP ERP</td><td>富勒 WMS</td><td>12</td><td><span class="status inactive">禁用</span></td><td><button class="btn btn-primary">编辑</button> <button class="btn btn-success">启用</button></td></tr></tbody></table></div>
+                </div>
+                <!-- 路由配置 -->
+                <div class="page" id="page-routes">
+                    <div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:20px"><h3>路由规则</h3><button class="btn btn-primary" onclick="showModal('addRouteModal')">+ 添加规则</button></div><table><thead><tr><th>规则 ID</th><th>匹配类型</th><th>匹配条件</th><th>目标服务</th><th>优先级</th><th>操作</th></tr></thead><tbody><tr><td>r-001</td><td>前缀匹配</td><td>/api/v1/orders</td><td>order-service</td><td>100</td><td><button class="btn btn-primary">编辑</button></td></tr><tr><td>r-002</td><td>Header 匹配</td><td>X-Tenant: A</td><td>tenant-a-service</td><td>200</td><td><button class="btn btn-primary">编辑</button></td></tr><tr><td>r-003</td><td>精确匹配</td><td>/health</td><td>health-check</td><td>300</td><td><button class="btn btn-primary">编辑</button></td></tr></tbody></table></div>
+                </div>
+                <!-- 监控中心 -->
+                <div class="page" id="page-monitor">
+                    <div class="stats-grid"><div class="stat-card"><div class="label">QPS (当前)</div><div class="value">1,234</div></div><div class="stat-card"><div class="label">P99 延迟</div><div class="value">89ms</div></div><div class="stat-card"><div class="label">错误率</div><div class="value">0.02%</div></div><div class="stat-card"><div class="label">活跃连接</div><div class="value">567</div></div></div>
+                    <div class="card"><h3>调用量趋势 (24h)</h3><div class="chart-placeholder">📈 调用量趋势图表区域 (集成 Grafana/ECharts)</div></div>
+                    <div class="card"><h3>系统健康状态</h3><table><thead><tr><th>系统</th><th>状态</th><th>CPU</th><th>内存</th><th>延迟</th><th>最后检查</th></tr></thead><tbody><tr><td>SAP ERP</td><td><span class="status active">健康</span></td><td>45%</td><td>62%</td><td>35ms</td><td>10s 前</td></tr><tr><td>Salesforce</td><td><span class="status active">健康</span></td><td>32%</td><td>58%</td><td>42ms</td><td>10s 前</td></tr><tr><td>Workday</td><td><span class="status active">健康</span></td><td>28%</td><td>45%</td><td>56ms</td><td>10s 前</td></tr><tr><td>富勒 WMS</td><td><span class="status inactive">警告</span></td><td>78%</td><td>82%</td><td>180ms</td><td>10s 前</td></tr></tbody></table></div>
+                </div>
+                <!-- 日志审计 -->
+                <div class="page" id="page-logs">
+                    <div class="card"><h3>操作日志</h3><div style="margin-bottom:15px"><input type="text" placeholder="搜索日志..." style="padding:8px 12px;border:1px solid #d9d9d9;border-radius:4px;width:300px"></div><div id="logContainer"><div class="log-item"><span class="log-time">2026-04-10 14:32:15</span><span class="log-level info">INFO</span><span>用户 admin 创建数据映射规则: ERP→CRM 客户同步</span></div><div class="log-item"><span class="log-time">2026-04-10 14:28:03</span><span class="log-level warn">WARN</span><span>系统 CRM 响应延迟超过阈值 (210ms > 200ms)</span></div><div class="log-item"><span class="log-time">2026-04-10 14:15:42</span><span class="log-level error">ERROR</span><span>数据转换失败: 字段 amount 类型不匹配 (期望 Number, 收到 String)</span></div><div class="log-item"><span class="log-time">2026-04-10 13:58:20</span><span class="log-level info">INFO</span><span>系统 WMS 成功接入，协议: AMQP</span></div><div class="log-item"><span class="log-time">2026-04-10 13:45:11</span><span class="log-level info">INFO</span><span>用户 admin 更新路由规则 r-002</span></div><div class="log-item"><span class="log-time">2026-04-10 13:30:05</span><span class="log-level info">INFO</span><span>系统启动完成，加载 5 个连接器</span></div></div></div>
+                </div>
+                <!-- 系统设置 -->
+                <div class="page" id="page-settings">
+                    <div class="card"><h3>基础配置</h3><div class="config-item"><span class="config-key">系统名称</span><span class="config-value">企业多系统连接中枢</span></div><div class="config-item"><span class="config-key">运行环境</span><span class="config-value">Production</span></div><div class="config-item"><span class="config-key">API 网关</span><span class="config-value">Apache APISIX 3.8</span></div><div class="config-item"><span class="config-key">消息中间件</span><span class="config-value">Kafka 3.6 (KRaft)</span></div><div class="config-item"><span class="config-key">流程引擎</span><span class="config-value">Camunda 8.4</span></div></div>
+                    <div class="card"><h3>安全配置</h3><div class="form-group"><label>Token 有效期 (小时)</label><input type="number" value="24"></div><div class="form-group"><label>最大登录失败次数</label><input type="number" value="5"></div><div class="form-group"><label>IP 白名单</label><textarea>203.0.113.10/8&#10;203.0.113.10/12&#10;203.0.113.10/16</textarea></div><button class="btn btn-primary">保存配置</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 模态框 -->
+    <div class="modal" id="addSystemModal"><div class="modal-content"><div class="modal-header"><h3>新增系统</h3><button class="close-btn" onclick="hideModal('addSystemModal')">&times;</button></div><div class="form-group"><label>系统名称</label><input type="text" placeholder="如: SAP ERP"></div><div class="form-group"><label>系统类型</label><select><option>ERP</option><option>CRM</option><option>HRM</option><option>OA</option><option>WMS</option><option>Custom</option></select></div><div class="form-group"><label>接入协议</label><select><option>REST</option><option>gRPC</option><option>AMQP</option><option>WebSocket</option></select></div><div class="form-group"><label>Endpoint</label><input type="text" placeholder="https://..."></div><button class="btn btn-primary" onclick="hideModal('addSystemModal')">提交</button></div></div>
+    <div class="modal" id="addApiModal"><div class="modal-content"><div class="modal-header"><h3>注册 API</h3><button class="close-btn" onclick="hideModal('addApiModal')">&times;</button></div><div class="form-group"><label>API 路径</label><input type="text" placeholder="/api/v1/..."></div><div class="form-group"><label>请求方法</label><select><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></div><div class="form-group"><label>所属系统</label><select><option>SAP ERP</option><option>Salesforce</option><option>Workday</option></select></div><button class="btn btn-primary" onclick="hideModal('addApiModal')">提交</button></div></div>
+    <div class="modal" id="addMappingModal"><div class="modal-content"><div class="modal-header"><h3>创建数据映射</h3><button class="close-btn" onclick="hideModal('addMappingModal')">&times;</button></div><div class="form-group"><label>映射名称</label><input type="text" placeholder="如: ERP→CRM 客户同步"></div><div class="form-group"><label>源系统</label><select><option>SAP ERP</option><option>Salesforce</option></select></div><div class="form-group"><label>目标系统</label><select><option>Salesforce</option><option>SAP ERP</option></select></div><div class="form-group"><label>映射规则 (JSON)</label><textarea>[{"source": "$.cust_id", "target": "$.contact_id"}]</textarea></div><button class="btn btn-primary" onclick="hideModal('addMappingModal')">提交</button></div></div>
+    <div class="modal" id="addRouteModal"><div class="modal-content"><div class="modal-header"><h3>添加路由规则</h3><button class="close-btn" onclick="hideModal('addRouteModal')">&times;</button></div><div class="form-group"><label>匹配类型</label><select><option>前缀匹配</option><option>精确匹配</option><option>Header 匹配</option></select></div><div class="form-group"><label>匹配条件</label><input type="text" placeholder="/api/v1 或 X-Tenant: A"></div><div class="form-group"><label>目标服务</label><input type="text" placeholder="service-name"></div><div class="form-group"><label>优先级</label><input type="number" value="100"></div><button class="btn btn-primary" onclick="hideModal('addRouteModal')">提交</button></div></div>
+    <script>
+        const token = YOUR_SECRET'token');
+        if (!token) { window.location.href = '/login'; }
+        document.getElementById('username').textContent = '管理员: admin';
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                this.classList.add('active');
+                const page = this.dataset.page;
+                document.getElementById('page-' + page).classList.add('active');
+                const titles = { dashboard: '首页概览', systems: '系统管理', apis: 'API 管理', mapping: '数据映射', routes: '路由配置', monitor: '监控中心', logs: '日志审计', settings: '系统设置' };
+                document.getElementById('pageTitle').textContent = titles[page];
+            });
+        });
+        function logout() { localStorage.removeItem('token'); window.location.href = '/login'; }
+        function showModal(id) { document.getElementById(id).classList.add('show'); }
+        function hideModal(id) { document.getElementById(id).classList.remove('show'); }
+    </script>
+</body>
+</html>
